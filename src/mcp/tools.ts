@@ -6,6 +6,8 @@ import type { MCPTool, MCPCapabilities, MCPProtocolVersion } from '../utils/type
 import type { ILogger } from '../core/logger.js';
 import { MCPError } from '../utils/errors.js';
 import { EventEmitter } from 'node:events';
+import inquirer from 'inquirer';
+import { execSync } from 'node:child_process';
 
 export interface ToolCapability {
   name: string;
@@ -39,6 +41,11 @@ export interface ToolDiscoveryQuery {
   permissions?: string[];
 }
 
+export interface ToolRegistryOptions {
+  promptInstall?: boolean;
+  detailedLogging?: boolean;
+}
+
 /**
  * Enhanced Tool registry implementation with capability negotiation
  */
@@ -49,20 +56,24 @@ export class ToolRegistry extends EventEmitter {
   private categories = new Set<string>();
   private tags = new Set<string>();
 
-  constructor(private logger: ILogger) {
+  constructor(private logger: ILogger, private options: ToolRegistryOptions = {}) {
     super();
   }
 
   /**
    * Registers a new tool with enhanced capability information
    */
-  register(tool: MCPTool, capability?: ToolCapability): void {
+  async register(tool: MCPTool, capability?: ToolCapability): Promise<void> {
     if (this.tools.has(tool.name)) {
       throw new MCPError(`Tool already registered: ${tool.name}`);
     }
 
     // Validate tool schema
     this.validateTool(tool);
+
+     if (capability?.dependencies) {
+       await this.ensureDependencies(capability.dependencies);
+     }
 
     // Register tool
     this.tools.set(tool.name, tool);
@@ -95,6 +106,33 @@ export class ToolRegistry extends EventEmitter {
 
     this.logger.debug('Tool registered', { name: tool.name });
     this.emit('toolRegistered', { name: tool.name, capability });
+  }
+
+  private async ensureDependencies(deps: string[]): Promise<void> {
+    for (const dep of deps) {
+      try {
+        require.resolve(dep);
+      } catch {
+        if (this.options.promptInstall) {
+          const { install } = await inquirer.prompt({
+            type: 'confirm',
+            name: 'install',
+            message: `Dependency "${dep}" is missing. Install now?`,
+            default: false,
+          });
+          if (install) {
+            try {
+              execSync(`npm install ${dep}`, { stdio: 'inherit' });
+              this.logger.info('Installed dependency', { dep });
+            } catch (err) {
+              this.logger.error('Failed to install dependency', { dep, err });
+            }
+          }
+        } else {
+          this.logger.warn(`Missing dependency for tool: ${dep}`);
+        }
+      }
+    }
   }
 
   /**
@@ -145,7 +183,16 @@ export class ToolRegistry extends EventEmitter {
     const startTime = Date.now();
     const metrics = this.metrics.get(name);
 
-    this.logger.debug('Executing tool', { name, input });
+    if (this.options.detailedLogging) {
+      this.logger.info('Tool invocation', {
+        name,
+        input,
+        agentId: context?.agentId,
+        sessionId: context?.sessionId,
+      });
+    } else {
+      this.logger.debug('Executing tool', { name, input });
+    }
 
     try {
       // Validate input against schema
@@ -167,11 +214,20 @@ export class ToolRegistry extends EventEmitter {
         metrics.lastInvoked = new Date();
       }
 
-      this.logger.debug('Tool executed successfully', {
-        name,
-        executionTime: Date.now() - startTime,
-      });
-      this.emit('toolExecuted', { name, success: true, executionTime: Date.now() - startTime });
+      const executionTime = Date.now() - startTime;
+      if (this.options.detailedLogging) {
+        this.logger.info('Tool executed successfully', {
+          name,
+          agentId: context?.agentId,
+          executionTime,
+        });
+      } else {
+        this.logger.debug('Tool executed successfully', {
+          name,
+          executionTime,
+        });
+      }
+      this.emit('toolExecuted', { name, success: true, executionTime });
 
       return result;
     } catch (error) {
@@ -185,16 +241,26 @@ export class ToolRegistry extends EventEmitter {
         metrics.lastInvoked = new Date();
       }
 
-      this.logger.error('Tool execution failed', {
-        name,
-        error,
-        executionTime: Date.now() - startTime,
-      });
+      const executionTime = Date.now() - startTime;
+      if (this.options.detailedLogging) {
+        this.logger.error('Tool execution failed', {
+          name,
+          agentId: context?.agentId,
+          error,
+          executionTime,
+        });
+      } else {
+          this.logger.error('Tool execution failed', {
+            name,
+            error,
+            executionTime,
+          });
+      }
       this.emit('toolExecuted', {
         name,
         success: false,
         error,
-        executionTime: Date.now() - startTime,
+        executionTime,
       });
       throw error;
     }

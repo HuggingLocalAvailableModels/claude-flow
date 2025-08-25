@@ -317,6 +317,25 @@ npx claude-flow@alpha batch process --items "test,build,deploy" --concurrent
 npx claude-flow@alpha pipeline create --config advanced-deployment.json
 ```
 
+### **Tool Definition & Logging**
+
+Claude-Flow exposes all custom MCP tools through the central registry located in `src/mcp/claude-flow-tools.ts`. Each tool is declared with its own factory function and registered with the `ToolRegistry`.
+
+- Missing dependencies specified in a tool’s capability section trigger an interactive installation prompt. The registry can automatically run `npm install` for the requested package.
+- A detailed logging mode records every tool invocation including the calling agent, input payload and success or error state. Enable both behaviors in the main configuration:
+
+```ts
+// claude-config.ts
+export const config = {
+  tools: {
+    promptInstall: true,
+    detailedLogging: true,
+  }
+}
+```
+
+All tool-specific CLI flags (for example `--allowedTools`, `--model`, `--max-tokens`) are honored automatically, ensuring each tool uses the parameters intended for it.
+
 ## 🧠 **Neural Network Capabilities**
 
 ### **Cognitive Computing Engine**

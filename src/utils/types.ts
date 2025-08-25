@@ -14,8 +14,12 @@ export interface Config {
     persistSessions?: boolean;
     shutdownTimeout?: number;
     maxConcurrentAgents?: number;
-  };
+  }; 
   logging?: LoggingConfig;
+  tools?: {
+    promptInstall?: boolean;
+    detailedLogging?: boolean;
+  };
   terminal?: {
     shell?: string;
     timeout?: number;
