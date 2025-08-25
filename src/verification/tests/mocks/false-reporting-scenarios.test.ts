@@ -15,6 +15,23 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 
+const deterministicRandom = (() => {
+  let seed = 42;
+  return () => {
+    const x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+  };
+})();
+let randomSpy: jest.SpyInstance<number, []>;
+
+beforeAll(() => {
+  randomSpy = jest.spyOn(Math, 'random').mockImplementation(deterministicRandom);
+});
+
+afterAll(() => {
+  randomSpy.mockRestore();
+});
+
 // Import verification components
 class TruthScoreCalculator {
   configPath!: string;

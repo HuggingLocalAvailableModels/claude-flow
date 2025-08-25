@@ -65,6 +65,16 @@ class CLI {
       type: 'string',
       default: 'info',
     },
+    {
+      name: 'provider',
+      description: 'Select LLM provider',
+      type: 'string',
+    },
+    {
+      name: 'tool-limit',
+      description: 'Limit number of tools per request',
+      type: 'number',
+    },
   ];
 
   constructor(
@@ -88,6 +98,13 @@ class CLI {
   async run(args = process.argv.slice(2)): Promise<void> {
     // Parse arguments manually since we're replacing the Deno parse function
     const flags = this.parseArgs(args);
+
+    if (flags.provider) {
+      process.env.DEFAULT_LLM_PROVIDER = String(flags.provider);
+    }
+    if (flags['tool-limit']) {
+      process.env.TOOL_LIMIT = String(flags['tool-limit']);
+    }
 
     if (flags.version || flags.v) {
       console.log(`${this.name} v${VERSION}`);
