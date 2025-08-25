@@ -359,7 +359,7 @@ describe('Tool Registry', () => {
   });
 
   describe('Tool Management', () => {
-    it('should register tools with capabilities', () => {
+    it('should register tools with capabilities', async () => {
       const tool = {
         name: 'test/tool',
         description: 'Test tool for registry',
@@ -381,13 +381,13 @@ describe('Tool Registry', () => {
         supportedProtocolVersions: [{ major: 2024, minor: 11, patch: 5 }],
       };
 
-      toolRegistry.register(tool, capability);
+      await toolRegistry.register(tool, capability);
 
       const registeredCapability = toolRegistry.getToolCapability('test/tool');
       expect(registeredCapability).toEqual(capability);
     });
 
-    it('should discover tools by criteria', () => {
+    it('should discover tools by criteria', async () => {
       const tool1 = {
         name: 'file/read',
         description: 'Read files',
@@ -402,8 +402,8 @@ describe('Tool Registry', () => {
         handler: jest.fn(),
       };
 
-      toolRegistry.register(tool1);
-      toolRegistry.register(tool2);
+      await toolRegistry.register(tool1);
+      await toolRegistry.register(tool2);
 
       const fileTools = toolRegistry.discoverTools({ category: 'file' });
       expect(fileTools).toHaveLength(1);
@@ -422,7 +422,7 @@ describe('Tool Registry', () => {
         handler: jest.fn().mockResolvedValue('success'),
       };
 
-      toolRegistry.register(tool);
+      await toolRegistry.register(tool);
 
       // Execute tool multiple times
       await toolRegistry.executeTool('test/metric-tool', {});

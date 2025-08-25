@@ -41,7 +41,7 @@ import { performance } from 'node:perf_hooks';
 export interface IMCPServer {
   start(): Promise<void>;
   stop(): Promise<void>;
-  registerTool(tool: MCPTool): void;
+  registerTool(tool: MCPTool): Promise<void>;
   getHealthStatus(): Promise<{
     healthy: boolean;
     error?: string;
@@ -109,7 +109,7 @@ export class MCPServer implements IMCPServer {
     this.transport = this.createTransport();
 
     // Initialize tool registry
-    this.toolRegistry = new ToolRegistry(logger);
+    this.toolRegistry = new ToolRegistry(logger, config.tools);
 
     // Initialize session manager
     this.sessionManager = new SessionManager(config, logger);
@@ -144,7 +144,7 @@ export class MCPServer implements IMCPServer {
       await this.transport.start();
 
       // Register built-in tools
-      this.registerBuiltInTools();
+      await this.registerBuiltInTools();
 
       this.running = true;
       this.logger.info('MCP server started successfully');
@@ -184,8 +184,8 @@ export class MCPServer implements IMCPServer {
     }
   }
 
-  registerTool(tool: MCPTool): void {
-    this.toolRegistry.register(tool);
+  async registerTool(tool: MCPTool): Promise<void> {
+    await this.toolRegistry.register(tool);
     this.logger.info('Tool registered', { name: tool.name });
   }
 
@@ -434,9 +434,9 @@ export class MCPServer implements IMCPServer {
     }
   }
 
-  private registerBuiltInTools(): void {
+  private async registerBuiltInTools(): Promise<void> {
     // System information tool
-    this.registerTool({
+    await this.registerTool({
       name: 'system/info',
       description: 'Get system information',
       inputSchema: {
@@ -455,7 +455,7 @@ export class MCPServer implements IMCPServer {
     });
 
     // Health check tool
-    this.registerTool({
+    await this.registerTool({
       name: 'system/health',
       description: 'Get system health status',
       inputSchema: {
@@ -468,7 +468,7 @@ export class MCPServer implements IMCPServer {
     });
 
     // List tools
-    this.registerTool({
+    await this.registerTool({
       name: 'tools/list',
       description: 'List all available tools',
       inputSchema: {
@@ -481,7 +481,7 @@ export class MCPServer implements IMCPServer {
     });
 
     // Tool schema
-    this.registerTool({
+    await this.registerTool({
       name: 'tools/schema',
       description: 'Get schema for a specific tool',
       inputSchema: {
@@ -506,7 +506,7 @@ export class MCPServer implements IMCPServer {
 
     // Register Claude-Flow specific tools if orchestrator is available
     if (this.orchestrator) {
-      const claudeFlowTools = createClaudeFlowTools(this.logger);
+      const claudeFlowTools = await createClaudeFlowTools(this.logger);
 
       for (const tool of claudeFlowTools) {
         // Wrap the handler to inject orchestrator context
@@ -520,7 +520,7 @@ export class MCPServer implements IMCPServer {
           return await originalHandler(input, claudeFlowContext);
         };
 
-        this.registerTool(tool);
+        await this.registerTool(tool);
       }
 
       this.logger.info('Registered Claude-Flow tools', { count: claudeFlowTools.length });
@@ -548,7 +548,7 @@ export class MCPServer implements IMCPServer {
           return await originalHandler(input, swarmContext);
         };
 
-        this.registerTool(tool);
+        await this.registerTool(tool);
       }
 
       this.logger.info('Registered Swarm tools', { count: swarmTools.length });
@@ -557,7 +557,7 @@ export class MCPServer implements IMCPServer {
     }
 
     // Register ruv-swarm MCP tools if available
-    this.registerRuvSwarmTools();
+    await this.registerRuvSwarmTools();
   }
 
   /**
@@ -601,7 +601,7 @@ export class MCPServer implements IMCPServer {
           return await originalHandler(input, ruvSwarmContext);
         };
 
-        this.registerTool(tool);
+        await this.registerTool(tool);
       }
 
       this.logger.info('Registered ruv-swarm MCP tools', {

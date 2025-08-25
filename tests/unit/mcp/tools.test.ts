@@ -25,7 +25,7 @@ describe('ToolRegistry', () => {
   });
 
   describe('Tool Registration', () => {
-    it('should register a valid tool', () => {
+    it('should register a valid tool', async () => {
       const tool: MCPTool = {
         name: 'test/tool',
         description: 'A test tool',
@@ -41,7 +41,7 @@ describe('ToolRegistry', () => {
         },
       };
 
-      registry.register(tool);
+      await registry.register(tool);
       
       const retrievedTool = registry.getTool('test/tool');
       expect(retrievedTool).toBeDefined();
@@ -49,7 +49,7 @@ describe('ToolRegistry', () => {
       expect(retrievedTool?.description).toBe('A test tool');
     });
 
-    it('should prevent duplicate tool registration', () => {
+    it('should prevent duplicate tool registration', async () => {
       const tool: MCPTool = {
         name: 'test/duplicate',
         description: 'A test tool',
@@ -57,17 +57,17 @@ describe('ToolRegistry', () => {
         handler: async () => ({}),
       };
 
-      registry.register(tool);
-      
+      await registry.register(tool);
+
       try {
-        registry.register(tool);
+        await registry.register(tool);
         throw new Error('Should have thrown an error');
       } catch (error) {
         expect((error as Error).message.includes('already registered')).toBe(true);
       }
     });
 
-    it('should validate tool name format', () => {
+    it('should validate tool name format', async () => {
       const invalidTool: MCPTool = {
         name: 'invalid-name', // Should be namespace/name
         description: 'Invalid tool',
@@ -76,14 +76,14 @@ describe('ToolRegistry', () => {
       };
 
       try {
-        registry.register(invalidTool);
+        await registry.register(invalidTool);
         throw new Error('Should have thrown an error');
       } catch (error) {
         expect((error as Error).message.includes('format: namespace/name')).toBe(true);
       }
     });
 
-    it('should validate required tool properties', () => {
+    it('should validate required tool properties', async () => {
       const invalidTools = [
         {
           name: '',
@@ -113,7 +113,7 @@ describe('ToolRegistry', () => {
 
       for (const invalidTool of invalidTools) {
         try {
-          registry.register(invalidTool as MCPTool);
+          await registry.register(invalidTool as MCPTool);
           throw new Error('Should have thrown an error');
         } catch (error) {
           expect(error).toBeDefined();
@@ -123,7 +123,7 @@ describe('ToolRegistry', () => {
   });
 
   describe('Tool Retrieval', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       const tools: MCPTool[] = [
         {
           name: 'test/tool1',
@@ -140,7 +140,7 @@ describe('ToolRegistry', () => {
       ];
 
       for (const tool of tools) {
-        registry.register(tool);
+        await registry.register(tool);
       }
     });
 
@@ -172,7 +172,7 @@ describe('ToolRegistry', () => {
   });
 
   describe('Tool Execution', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       const tools: MCPTool[] = [
         {
           name: 'test/echo',
@@ -199,7 +199,7 @@ describe('ToolRegistry', () => {
       ];
 
       for (const tool of tools) {
-        registry.register(tool);
+        await registry.register(tool);
       }
     });
 
@@ -246,7 +246,7 @@ describe('ToolRegistry', () => {
   });
 
   describe('Tool Unregistration', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       const tool: MCPTool = {
         name: 'test/removable',
         description: 'Removable tool',
@@ -254,14 +254,14 @@ describe('ToolRegistry', () => {
         handler: async () => ({}),
       };
 
-      registry.register(tool);
+      await registry.register(tool);
     });
 
     it('should unregister a tool', () => {
       expect(registry.getTool('test/removable').toBeDefined());
-      
+
       registry.unregister('test/removable');
-      
+
       expect(registry.getTool('test/removable')).toBe(undefined);
     });
 
@@ -276,7 +276,7 @@ describe('ToolRegistry', () => {
   });
 
   describe('Input Validation', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       const tool: MCPTool = {
         name: 'test/complex',
         description: 'Complex validation tool',
@@ -294,7 +294,7 @@ describe('ToolRegistry', () => {
         handler: async (input: any) => input,
       };
 
-      registry.register(tool);
+      await registry.register(tool);
     });
 
     it('should validate string types', async () => {
@@ -352,7 +352,7 @@ describe('ToolRegistry', () => {
         handler: async () => ({ received: 'null' }),
       };
 
-      registry.register(tool);
+      await registry.register(tool);
 
       const result = await registry.executeTool('test/null', null);
       expect(result).toBe({ received: 'null' });
