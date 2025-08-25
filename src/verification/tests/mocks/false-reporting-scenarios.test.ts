@@ -628,7 +628,7 @@ describe('False Reporting Detection Scenarios', () => {
 
       expect(analysis.deceptionDetected).toBe(true);
       expect(analysis.deceptionType).toContain('gaslighting');
-      expect(analysis.evidence.contradictionCount).toBeGreaterThanOrEqual(0);
+      expect(analysis.evidence.contradictionCount).toBeGreaterThan(0);
     });
   });
 
