@@ -2,6 +2,8 @@
  * Mock implementations for testing
  */
 
+import { jest } from '@jest/globals';
+
 export const mockAgent = {
   id: 'mock-agent-1',
   name: 'Mock Agent',

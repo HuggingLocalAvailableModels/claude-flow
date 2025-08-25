@@ -218,16 +218,26 @@ function showHelpWithCommands(plain = false) {
 async function main() {
   // args is imported from node-compat.js
 
-  if (args.length === 0) {
+  const { flags, args: positional } = parseFlags(args);
+
+  // Check for --plain flag for help early
+  const usePlainHelp = Boolean(flags.plain);
+
+  // Apply global configuration flags before handling commands
+  if (flags.provider) {
+    process.env.DEFAULT_LLM_PROVIDER = String(flags.provider);
+  }
+  if (flags['tool-limit']) {
+    process.env.TOOL_LIMIT = String(flags['tool-limit']);
+  }
+
+  if (positional.length === 0) {
     printHelp(usePlainHelp);
     return;
   }
 
-  const command = args[0];
-  const { flags, args: parsedArgs } = parseFlags(args.slice(1));
-
-  // Check for --plain flag for help early
-  const usePlainHelp = args.includes('--plain');
+  const command = positional[0];
+  const parsedArgs = positional.slice(1);
 
   // Apply environment-based smart defaults
   let enhancedFlags = flags;

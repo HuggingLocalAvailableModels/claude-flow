@@ -158,6 +158,31 @@ describe('Claude-Flow CLI', () => {
       const flags = parseFlags(['--port=8080', '--name=test']);
       expect(flags).toEqual({ port: '8080', name: 'test' });
     });
+
+    test('should set provider and tool limit env vars', async () => {
+      const originalProvider = process.env.DEFAULT_LLM_PROVIDER;
+      const originalLimit = process.env.TOOL_LIMIT;
+      process.argv = ['node', 'claude-flow', '--provider', 'codex-cli', '--tool-limit', '10'];
+
+      const { hasCommand } = await import('../command-registry.js');
+      hasCommand.mockReturnValue(false);
+
+      await import('../simple-cli.js');
+
+      expect(process.env.DEFAULT_LLM_PROVIDER).toBe('codex-cli');
+      expect(process.env.TOOL_LIMIT).toBe('10');
+
+      if (originalProvider === undefined) {
+        delete process.env.DEFAULT_LLM_PROVIDER;
+      } else {
+        process.env.DEFAULT_LLM_PROVIDER = originalProvider;
+      }
+      if (originalLimit === undefined) {
+        delete process.env.TOOL_LIMIT;
+      } else {
+        process.env.TOOL_LIMIT = originalLimit;
+      }
+    });
   });
 
   describe('Error handling', () => {
