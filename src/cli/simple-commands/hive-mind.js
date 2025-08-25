@@ -23,6 +23,7 @@ import {
   nonInteractiveProgress,
   nonInteractiveSelect,
 } from '../utils/safe-interactive.js';
+import { ensureCliAndApiKey } from '../utils/cli-env.js';
 
 // Import SQLite for persistence
 import Database from 'better-sqlite3';
@@ -38,6 +39,9 @@ import { CollectiveMemory } from './hive-mind/memory.js';
 import { SwarmCommunication } from './hive-mind/communication.js';
 import { HiveMindSessionManager } from './hive-mind/session-manager.js';
 import { createAutoSaveMiddleware } from './hive-mind/auto-save-middleware.js';
+
+// Ensure required CLI runtime and API key are available
+await ensureCliAndApiKey();
 
 function showHiveMindHelp() {
   console.log(`
