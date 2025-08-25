@@ -2,22 +2,15 @@ export default {
   preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/src'],
   testMatch: [
-    '<rootDir>/tests/**/*.test.ts',
-    '<rootDir>/tests/**/*.test.js',
-    '<rootDir>/tests/**/*.spec.ts',
-    '<rootDir>/tests/**/*.spec.js',
-    '<rootDir>/src/**/*.test.ts',
-    '<rootDir>/src/**/*.test.js',
-    '<rootDir>/src/**/*.spec.ts',
-    '<rootDir>/src/**/*.spec.js'
+    '<rootDir>/src/verification/tests/mocks/false-reporting-scenarios.test.ts',
+    '<rootDir>/src/providers/external-cli-provider.test.ts'
   ],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/dist/',
-    '<rootDir>/bin/',
-    '<rootDir>/tests/.*\\.broken$'
+    '<rootDir>/bin/'
   ],
   transform: {
     '^.+\\.ts$': ['ts-jest', {

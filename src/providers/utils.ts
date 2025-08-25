@@ -88,6 +88,27 @@ export function getDefaultProviderConfig(): ProviderManagerConfig {
         timeout: 120000, // Longer timeout for local models
         retryAttempts: 2,
       },
+      'codex-cli': {
+        provider: 'codex-cli',
+        model: 'codex',
+        enableStreaming: false,
+        enableCaching: false,
+        providerOptions: { command: process.env.CODEX_CLI_COMMAND || 'codex' },
+      },
+      'gemini-cli': {
+        provider: 'gemini-cli',
+        model: 'gemini-cli',
+        enableStreaming: false,
+        enableCaching: false,
+        providerOptions: { command: process.env.GEMINI_CLI_COMMAND || 'gemini' },
+      },
+      aider: {
+        provider: 'aider',
+        model: 'aider-model',
+        enableStreaming: false,
+        enableCaching: false,
+        providerOptions: { command: process.env.AIDER_CLI_COMMAND || 'aider' },
+      },
     },
     fallbackStrategy: getDefaultFallbackStrategy(),
     loadBalancing: {

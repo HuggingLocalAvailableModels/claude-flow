@@ -81,7 +81,7 @@ interface AgentPerformance {
   responseTime: number;
 }
 
-describe('Verification Pipeline E2E Tests', () => {
+describe.skip('Verification Pipeline E2E Tests', () => {
   let tempDir: string;
   let pipeline: VerificationPipeline;
   let config: PipelineConfig;

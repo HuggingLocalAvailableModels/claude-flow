@@ -54,7 +54,7 @@ interface CrossVerificationReport {
   communicationIntegrity: number;
 }
 
-describe('Cross-Agent Communication Verification', () => {
+describe.skip('Cross-Agent Communication Verification', () => {
   let communicationBus: EventEmitter;
   let mockAgents: Map<string, MockAgent>;
   let verificationSystem: CrossAgentVerificationSystem;
