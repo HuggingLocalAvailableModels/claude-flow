@@ -35,6 +35,7 @@ import { OpenAIProvider } from './openai-provider.js';
 import { GoogleProvider } from './google-provider.js';
 import { CohereProvider } from './cohere-provider.js';
 import { OllamaProvider } from './ollama-provider.js';
+import { ExternalCLIProvider } from './external-cli-provider.js';
 
 export interface ProviderManagerConfig {
   providers: Record<LLMProvider, LLMProviderConfig>;
@@ -130,6 +131,14 @@ export class ProviderManager extends EventEmitter {
         case 'ollama':
           provider = new OllamaProvider(providerOptions);
           break;
+        case 'codex-cli':
+        case 'gemini-cli':
+        case 'aider':
+          provider = new ExternalCLIProvider(name, {
+            ...providerOptions,
+            command: providerConfig.providerOptions?.command || name,
+          });
+          break;
         default:
           this.logger.warn(`Unknown provider: ${name}`);
           return null;
@@ -153,6 +162,12 @@ export class ProviderManager extends EventEmitter {
    * Complete a request using the appropriate provider
    */
   async complete(request: LLMRequest): Promise<LLMResponse> {
+    // Enforce tool limit if necessary
+    const maxTools = Number(process.env.TOOL_LIMIT || 128);
+    if (request.functions && request.functions.length > maxTools) {
+      request = { ...request, functions: request.functions.slice(0, maxTools) };
+    }
+
     // Check cache first
     if (this.config.caching?.enabled) {
       const cached = this.checkCache(request);
@@ -164,7 +179,7 @@ export class ProviderManager extends EventEmitter {
 
     // Select provider based on strategy
     const provider = await this.selectProvider(request);
-    
+
     try {
       const response = await provider.complete(request);
       
@@ -191,8 +206,13 @@ export class ProviderManager extends EventEmitter {
    * Stream complete a request
    */
   async *streamComplete(request: LLMRequest): AsyncIterable<LLMStreamEvent> {
+    const maxTools = Number(process.env.TOOL_LIMIT || 128);
+    if (request.functions && request.functions.length > maxTools) {
+      request = { ...request, functions: request.functions.slice(0, maxTools) };
+    }
+
     const provider = await this.selectProvider(request);
-    
+
     try {
       yield* provider.streamComplete(request);
       
