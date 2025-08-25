@@ -1,31 +1,62 @@
 #!/bin/bash
 # Claude-Flow Swarm Mode Wrapper
-# This script wraps the swarm demo to work with the installed Deno
+# Provides runtime selection, optional installation, and API key configuration
 
-# Find deno in the path
-DENO_PATH=$(which deno 2>/dev/null || echo "/home/codespace/.deno/bin/deno")
+read -p "Select runtime (deno/node) [deno]: " RUNTIME
+RUNTIME=${RUNTIME:-deno}
 
-if [ ! -x "$DENO_PATH" ]; then
-    echo "Error: Deno is not installed or not in PATH"
-    echo "Please install Deno first: https://deno.land/#installation"
-    exit 1
+if [ "$RUNTIME" = "node" ]; then
+    CLI_PATH=$(command -v node 2>/dev/null)
+    if [ -z "$CLI_PATH" ]; then
+        read -p "Node.js not found. Install now? (y/N) " INSTALL_NODE
+        if [[ "$INSTALL_NODE" =~ ^[Yy]$ ]]; then
+            echo "Please install Node.js from https://nodejs.org/"
+        fi
+        echo "Node.js is required."; exit 1
+    fi
+else
+    CLI_PATH=$(command -v deno 2>/dev/null || echo "$HOME/.deno/bin/deno")
+    if [ ! -x "$CLI_PATH" ]; then
+        read -p "Deno not installed. Install now? (y/N) " INSTALL_DENO
+        if [[ "$INSTALL_DENO" =~ ^[Yy]$ ]]; then
+            curl -fsSL https://deno.land/install.sh | sh
+            CLI_PATH="$HOME/.deno/bin/deno"
+        else
+            echo "Deno is required."; exit 1
+        fi
+    fi
 fi
 
-# Get the directory of this script
+# API key setup
+if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$CLAUDE_API_KEY" ]; then
+    echo "No API key found (ANTHROPIC_API_KEY or CLAUDE_API_KEY)."
+    read -p "Enter API key (leave empty to continue without): " INPUT_KEY
+    if [ -n "$INPUT_KEY" ]; then
+        export ANTHROPIC_API_KEY="$INPUT_KEY"
+        echo "API key set for current session."
+    else
+        echo "Continuing without API key."
+    fi
+fi
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Try to find swarm implementation in different locations
-if [ -f "$SCRIPT_DIR/../swarm-demo.ts" ]; then
-    # Local development path
-    SWARM_IMPL="$SCRIPT_DIR/../swarm-demo.ts"
-elif [ -f "$SCRIPT_DIR/../src/cli/swarm-standalone.js" ]; then
-    # Installed via npm - use the standalone JavaScript version
+if [ "$RUNTIME" = "node" ]; then
     SWARM_IMPL="$SCRIPT_DIR/../src/cli/swarm-standalone.js"
 else
-    echo "Error: Unable to find swarm implementation files"
-    echo "Please ensure claude-flow is properly installed"
-    exit 1
+    if [ -f "$SCRIPT_DIR/../swarm-demo.ts" ]; then
+        SWARM_IMPL="$SCRIPT_DIR/../swarm-demo.ts"
+    elif [ -f "$SCRIPT_DIR/../src/cli/swarm-standalone.js" ]; then
+        SWARM_IMPL="$SCRIPT_DIR/../src/cli/swarm-standalone.js"
+    else
+        echo "Error: Unable to find swarm implementation files"
+        echo "Please ensure claude-flow is properly installed"
+        exit 1
+    fi
 fi
 
-# Run the swarm implementation with all arguments
-exec "$DENO_PATH" run --allow-all "$SWARM_IMPL" "$@"
+if [ "$RUNTIME" = "node" ]; then
+    exec "$CLI_PATH" "$SWARM_IMPL" "$@"
+else
+    exec "$CLI_PATH" run --allow-all "$SWARM_IMPL" "$@"
+fi

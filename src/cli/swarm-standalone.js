@@ -16,11 +16,13 @@ const __dirname = dirname(__filename);
 const args = [];
 const flags = {};
 
-for (let i = 0; i < Deno.args.length; i++) {
-  const arg = Deno.args[i];
-  if (arg.startsWith('--')) {
-    const flagName = arg.substring(2);
-    const nextArg = Deno.args[i + 1];
+const runtimeArgs = typeof Deno !== 'undefined' ? Deno.args : process.argv.slice(2);
+
+  for (let i = 0; i < runtimeArgs.length; i++) {
+    const arg = runtimeArgs[i];
+    if (arg.startsWith('--')) {
+      const flagName = arg.substring(2);
+      const nextArg = runtimeArgs[i + 1];
 
     if (nextArg && !nextArg.startsWith('--')) {
       flags[flagName] = nextArg;
