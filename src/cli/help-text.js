@@ -32,6 +32,10 @@ USAGE:
   claude-flow <command> [options]
   claude-flow <command> --help    # Get detailed help for any command
 
+GLOBAL OPTIONS:
+  --provider <name>            Select LLM provider (anthropic, openai, codex-cli, gemini-cli, aider)
+  --tool-limit <n>             Limit number of tools per request
+
 🚀 QUICK START:
   # First time setup (creates CLAUDE.md & .claude/commands)
   npx claude-flow@alpha init

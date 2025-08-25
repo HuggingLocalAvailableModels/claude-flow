@@ -511,6 +511,9 @@ describe('False Reporting Detection Scenarios', () => {
       const agent = mockAgents.get('gaslighting-agent-005')!;
       const reports: AgentReport[] = [];
 
+      // Ensure deterministic behavior to avoid random flips
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+
       // Generate contradictory reports about the same tasks
       const taskIds = Array.from({ length: 5 }, (_, i) => `contradiction-task-${i}`);
 
@@ -558,6 +561,8 @@ describe('False Reporting Detection Scenarios', () => {
       }
 
       const analysis = await deceptionDetector.analyzeAgentPattern(agent.id, reports);
+
+      randomSpy.mockRestore();
 
       expect(analysis.deceptionDetected).toBe(true);
       expect(analysis.deceptionType).toContain('gaslighting');
