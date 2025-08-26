@@ -66,6 +66,24 @@ describe('Utils', () => {
       expect(result.flags).toEqual({});
       expect(result.args).toEqual([]);
     });
+
+    test('should parse equals and negative numbers with validation', () => {
+      const result = parseFlags(
+        ['--threshold=-5', '--name=test'],
+        { number: ['threshold'], string: ['name'] }
+      );
+      expect(result.flags).toEqual({ threshold: -5, name: 'test' });
+      expect(result.errors).toEqual([]);
+    });
+
+    test('should report unknown and invalid flags', () => {
+      const result = parseFlags(['--unknown', '--count', 'abc'], {
+        known: ['count'],
+        number: ['count'],
+      });
+      expect(result.unknownFlags).toEqual(['--unknown']);
+      expect(result.errors).toEqual(['Flag --count expects a numeric value']);
+    });
   });
 
   describe('formatBytes', () => {

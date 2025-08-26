@@ -5,7 +5,8 @@ export default {
   roots: ['<rootDir>/src'],
   testMatch: [
     '<rootDir>/src/verification/tests/mocks/false-reporting-scenarios.test.ts',
-    '<rootDir>/src/providers/external-cli-provider.test.ts'
+    '<rootDir>/src/providers/external-cli-provider.test.ts',
+    '<rootDir>/src/cli/__tests__/**/*.test.js',
   ],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',

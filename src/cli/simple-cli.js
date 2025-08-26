@@ -3,15 +3,15 @@
  * Simple CLI wrapper for Claude-Flow (JavaScript version)
  * This version avoids TypeScript issues in node_modules
  */
+/* eslint-disable no-console, no-case-declarations, @typescript-eslint/no-unused-vars */
 
 import {
   executeCommand,
   hasCommand,
   showCommandHelp,
-  showAllCommands,
   listCommands,
 } from './command-registry.js';
-import { parseFlags } from './utils.js';
+import { parseFlags, fileExists, readJsonFile } from './utils.js';
 import {
   args,
   cwd,
@@ -218,7 +218,33 @@ function showHelpWithCommands(plain = false) {
 async function main() {
   // args is imported from node-compat.js
 
-  const { flags, args: positional } = parseFlags(args);
+  const globalFlagDefs = {
+    known: ['plain', 'provider', 'tool-limit', 'config', 'help', 'h', 'version', 'v'],
+    boolean: ['plain', 'help', 'h', 'version', 'v'],
+    number: ['tool-limit'],
+    string: ['provider', 'config'],
+  };
+
+  const { flags, args: positional, unknownFlags, errors: flagErrors } = parseFlags(
+    args,
+    globalFlagDefs
+  );
+
+  const command = positional[0];
+  const parsedArgs = positional.slice(1);
+
+  const commandIndex = command ? args.indexOf(command) : -1;
+  const globalUnknowns = unknownFlags.filter(
+    (f) => args.indexOf(f) < commandIndex
+  );
+  if (globalUnknowns.length > 0) {
+    printWarning(`Unknown flag(s): ${globalUnknowns.join(', ')}`);
+  }
+  if (flagErrors.length > 0) {
+    for (const err of flagErrors) {
+      printWarning(err);
+    }
+  }
 
   // Check for --plain flag for help early
   const usePlainHelp = Boolean(flags.plain);
@@ -227,17 +253,23 @@ async function main() {
   if (flags.provider) {
     process.env.DEFAULT_LLM_PROVIDER = String(flags.provider);
   }
-  if (flags['tool-limit']) {
+  if (typeof flags['tool-limit'] === 'number') {
     process.env.TOOL_LIMIT = String(flags['tool-limit']);
   }
+  if (flags.config) {
+    const configPath = String(flags.config);
+    const exists = await fileExists(configPath);
+    if (!exists) {
+      printWarning(`Configuration file not found: ${configPath}`);
+    } else {
+      await readJsonFile(configPath, {}, { warnOnError: true });
+    }
+  }
 
-  if (positional.length === 0) {
+  if (!command) {
     printHelp(usePlainHelp);
     return;
   }
-
-  const command = positional[0];
-  const parsedArgs = positional.slice(1);
 
   // Apply environment-based smart defaults
   let enhancedFlags = flags;

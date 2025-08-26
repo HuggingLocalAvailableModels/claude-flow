@@ -1,9 +1,8 @@
+/* eslint-disable no-console */
 // utils.js - Shared CLI utility functions
 
-import { existsSync } from './node-compat.js';
 import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
-import { promisify } from 'util';
 import { chmod } from 'fs/promises';
 
 // Color formatting functions
@@ -60,11 +59,19 @@ export async function fileExists(path) {
 }
 
 // JSON helpers
-export async function readJsonFile(path, defaultValue = {}) {
+export async function readJsonFile(path, defaultValue = {}, options = {}) {
+  const { warnOnError = false } = options;
   try {
     const content = await fs.readFile(path, 'utf8');
     return JSON.parse(content);
-  } catch {
+  } catch (err) {
+    if (warnOnError) {
+      if (err.code === 'ENOENT') {
+        printWarning(`Configuration file not found: ${path}`);
+      } else {
+        printWarning(`Could not read configuration file ${path}: ${err.message}`);
+      }
+    }
     return defaultValue;
   }
 }
@@ -96,27 +103,52 @@ export function formatBytes(bytes) {
 }
 
 // Command execution helpers
-export function parseFlags(args) {
+export function parseFlags(args, options = {}) {
+  const {
+    known = [],
+    boolean: booleanFlags = [],
+    number: numberFlags = [],
+    string: stringFlags = [],
+  } = options;
+
   const flags = {};
   const filteredArgs = [];
+  const unknownFlags = [];
+  const errors = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg.startsWith('--')) {
-      const flagName = arg.substring(2);
-      const nextArg = args[i + 1];
+      let flagName;
+      let value;
 
-      if (nextArg && !nextArg.startsWith('--')) {
-        flags[flagName] = nextArg;
-        i++; // Skip next arg since we consumed it
+      if (arg.includes('=')) {
+        const parts = arg.substring(2).split(/=(.*)/s);
+        flagName = parts[0];
+        value = parts[1] === undefined || parts[1] === '' ? true : parts[1];
       } else {
-        flags[flagName] = true;
+        flagName = arg.substring(2);
+        const nextArg = args[i + 1];
+        if (nextArg && (!nextArg.startsWith('-') || /^-?\d/.test(nextArg))) {
+          value = nextArg;
+          i++;
+        } else {
+          value = true;
+        }
       }
+
+      if (known.length && !known.includes(flagName)) {
+        unknownFlags.push(`--${flagName}`);
+      }
+
+      flags[flagName] = value;
     } else if (arg.startsWith('-') && arg.length > 1) {
-      // Short flags
-      const shortFlags = arg.substring(1);
+      const shortFlags = arg.substring(1).split('');
       for (const flag of shortFlags) {
+        if (known.length && !known.includes(flag)) {
+          unknownFlags.push(`-${flag}`);
+        }
         flags[flag] = true;
       }
     } else {
@@ -124,18 +156,45 @@ export function parseFlags(args) {
     }
   }
 
-  return { flags, args: filteredArgs };
+  // Type validation
+  for (const [key, value] of Object.entries(flags)) {
+    if (booleanFlags.includes(key)) {
+      if (value === true || value === false) {
+        flags[key] = Boolean(value);
+      } else if (value === 'true' || value === 'false') {
+        flags[key] = value === 'true';
+      } else {
+        errors.push(`Flag --${key} expects a boolean value`);
+      }
+    } else if (numberFlags.includes(key)) {
+      const num = Number(value);
+      if (value === true || Number.isNaN(num)) {
+        errors.push(`Flag --${key} expects a numeric value`);
+      } else {
+        flags[key] = num;
+      }
+    } else if (stringFlags.includes(key)) {
+      if (value === true) {
+        errors.push(`Flag --${key} expects a string value`);
+      } else {
+        flags[key] = String(value);
+      }
+    }
+  }
+
+  return { flags, args: filteredArgs, unknownFlags, errors };
 }
 
 // Process execution helpers
 export async function runCommand(command, args = [], options = {}) {
-  try {
-    // Node.js environment
-    return new Promise((resolve) => {
+  const { retries = 0, ...spawnOptions } = options;
+
+  const attemptRun = () =>
+    new Promise((resolve) => {
       const child = spawn(command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: true,
-        ...options,
+        ...spawnOptions,
       });
 
       let stdout = '';
@@ -153,28 +212,53 @@ export async function runCommand(command, args = [], options = {}) {
         resolve({
           success: code === 0,
           code: code || 0,
-          stdout: stdout,
-          stderr: stderr,
+          stdout,
+          stderr,
         });
       });
 
       child.on('error', (err) => {
         resolve({
           success: false,
-          code: -1,
+          code: err.code || -1,
           stdout: '',
           stderr: err.message,
+          errorType: classifyError(err),
         });
       });
     });
-  } catch (err) {
-    return {
-      success: false,
-      code: -1,
-      stdout: '',
-      stderr: err.message,
-    };
-  }
+
+  let attempt = 0;
+  let result;
+  do {
+    result = await attemptRun();
+    if (result.success) return result;
+    if (
+      attempt < retries &&
+      (result.errorType === 'network' || result.errorType === 'filesystem')
+    ) {
+      await new Promise((r) => setTimeout(r, 500));
+      attempt++;
+    } else {
+      return result;
+    }
+  } while (attempt <= retries);
+
+  return result;
+}
+
+function classifyError(err) {
+  const networkCodes = new Set([
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'ETIMEDOUT',
+  ]);
+  const fsCodes = new Set(['ENOENT', 'EACCES', 'EISDIR', 'EMFILE']);
+  if (networkCodes.has(err.code)) return 'network';
+  if (fsCodes.has(err.code)) return 'filesystem';
+  return 'general';
 }
 
 // Configuration helpers
