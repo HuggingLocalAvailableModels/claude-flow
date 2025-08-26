@@ -4,7 +4,7 @@
   "parserOptions": {
     "ecmaVersion": 2022,
     "sourceType": "module",
-    "project": "./tsconfig.json"
+    "project": "./tsconfig.eslint.json"
   },
   "plugins": [
     "@typescript-eslint"
@@ -31,5 +31,19 @@
     "node_modules/",
     "coverage/",
     "*.js"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.js"],
+      "parserOptions": {
+        "project": null
+      }
+    },
+    {
+      "files": ["**/__tests__/**/*.js"],
+      "env": {
+        "jest": true
+      }
+    }
   ]
 }

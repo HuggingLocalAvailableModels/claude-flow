@@ -12,7 +12,7 @@ import {
   showAllCommands,
   listCommands,
 } from './command-registry.js';
-import { parseFlags } from './utils.js';
+import { parseFlags, fileExists, readJsonFile } from './utils.js';
 import { VERSION } from '../core/version.js';
 
 function printHelp() {
@@ -176,8 +176,44 @@ async function main() {
     return;
   }
 
-  const command = args[0];
-  const { flags, args: parsedArgs } = parseFlags(args.slice(1));
+  const globalFlagDefs = {
+    known: ['plain', 'provider', 'tool-limit', 'config', 'help', 'h', 'version', 'v'],
+    boolean: ['plain', 'help', 'h', 'version', 'v'],
+    number: ['tool-limit'],
+    string: ['provider', 'config'],
+  };
+
+  const { flags, args: positional, unknownFlags, errors: flagErrors } = parseFlags(
+    args,
+    globalFlagDefs
+  );
+  const command = positional[0];
+  const parsedArgs = positional.slice(1);
+
+  const commandIndex = command ? args.indexOf(command) : -1;
+  const globalUnknowns = unknownFlags.filter(
+    (f) => args.indexOf(f) < commandIndex
+  );
+  if (globalUnknowns.length > 0) {
+    printWarning(`Unknown flag(s): ${globalUnknowns.join(', ')}`);
+  }
+  if (flagErrors.length > 0) {
+    for (const err of flagErrors) printWarning(err);
+  }
+  if ((flags as any).config) {
+    const configPath = String((flags as any).config);
+    const exists = await fileExists(configPath);
+    if (!exists) {
+      printWarning(`Configuration file not found: ${configPath}`);
+    } else {
+      await readJsonFile(configPath, {}, { warnOnError: true });
+    }
+  }
+
+  if (!command) {
+    printHelp();
+    return;
+  }
 
   // Handle special commands first
   switch (command) {
